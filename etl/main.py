@@ -2,12 +2,20 @@ import logging
 from argparse import ArgumentParser
 
 from selenium import webdriver
-from selenium.common import TimeoutException
+from selenium.common import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 from bs4 import BeautifulSoup
+
+
+def contains_text(driver, text: str) -> bool:
+    try:
+        driver.find_element(By.XPATH, f"//*[contains(text(), '{text}')]")
+    except NoSuchElementException:
+        return False
+    return True
 
 
 def main(product_name: str, min_price: float, max_price: float ):
@@ -20,8 +28,12 @@ def main(product_name: str, min_price: float, max_price: float ):
     search_input.send_keys(product_name)
     search_input.send_keys(Keys.RETURN)
 
-    first_result = driver.find_element(By.XPATH, "/html/body/main/div/div[3]/section/ol/li[1]")
-    first_result.click()
+    if contains_text(driver, "Celulares e Smartphones"):
+        first_result = driver.find_element(By.XPATH, "/html/body/main/div/div[3]/section/ol/li[1]/div/div/div[2]/div[2]/h2/a")
+        first_result.click()
+    else:
+        first_result = driver.find_element(By.XPATH, "/html/body/main/div/div[3]/section/ol/li[1]")
+        first_result.click()
 
     try:
         WebDriverWait(driver, 1).until(
@@ -43,7 +55,7 @@ def main(product_name: str, min_price: float, max_price: float ):
 
     extraction_result = {
         "product_name": soup.find(class_="ui-pdp-title").text,
-        "product_price": float(soup.findAll(class_="andes-money-amount__fraction")[1].text.strip(".")) + cents,
+        "product_price": float(soup.findAll(class_="andes-money-amount__fraction")[1].text.replace(".", "")) + cents,
         "product_rating": float(soup.find(class_="ui-pdp-review__rating").text),
         "product_rating_amount": int(soup.find(class_="ui-pdp-review__amount").text.strip("()")),
         "product_stock": soup.find(class_="ui-pdp-buybox__quantity__available").text,
